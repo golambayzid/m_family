@@ -1,0 +1,1907 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mridha Family Tree</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #0c2461, #1e3799, #4a69bd);
+            color: #fff;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+        
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            text-align: center;
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(10px);
+            z-index: 100;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+        }
+        
+        .header h1 {
+            font-size: 2.2rem;
+            margin-bottom: 5px;
+            background: linear-gradient(45deg, #f7b733, #fc4a1a);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .header p {
+            font-size: 1rem;
+            color: #bbdefb;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        
+        #tree-container {
+            position: absolute;
+            top: 80px;
+            left: 0;
+            width: 100%;
+            height: calc(100vh - 80px);
+            overflow: auto;
+            background: rgba(255, 255, 255, 0.03);
+        }
+        
+        .generation-labels {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.6);
+            color: #ecf0f1;
+            padding: 10px 20px;
+            border-radius: 10px;
+            font-size: 1rem;
+            text-align: center;
+            backdrop-filter: blur(5px);
+            z-index: 100;
+            max-width: 90%;
+            display: flex;
+            gap: 15px;
+            font-weight: bold;
+        }
+        
+        .node circle {
+            fill: #3498db;
+            stroke: #1a5276;
+            stroke-width: 2px;
+            r: 16;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .node circle.root {
+            fill: #e74c3c;
+            r: 20;
+        }
+        
+        .node circle.gen1 {
+            fill: #2ecc71;
+        }
+        
+        .node circle.gen2 {
+            fill: #f39c12;
+        }
+        
+        .node circle.gen3 {
+            fill: #9b59b6;
+        }
+        
+        .node circle.gen4 {
+            fill: #1abc9c;
+        }
+        
+        .node circle.gen5 {
+            fill: #d35400;
+        }
+        
+        .node circle.gen6 {
+            fill: #e84393;
+        }
+        
+        .node circle:hover {
+            fill: #1abc9c;
+            r: 18;
+            filter: drop-shadow(0 0 8px rgba(26, 188, 156, 0.7));
+        }
+        
+        .node text {
+            font-size: 16px;
+            fill: white;
+            font-weight: 600;
+            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+            pointer-events: none;
+            text-anchor: middle;
+            dominant-baseline: middle;
+            cursor: pointer;
+        }
+        
+        .link {
+            fill: none;
+            stroke: rgba(255, 255, 255, 0.3);
+            stroke-width: 2px;
+            transition: all 0.3s ease;
+        }
+        
+        .info-panel {
+            position: fixed;
+            top: 90px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            font-size: 1.1rem;
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            z-index: 100;
+            width: 320px;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+            transform: translateY(-20px);
+            opacity: 0;
+            transition: all 0.3s ease;
+        }
+        
+        .info-panel.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+        
+        .info-panel h3 {
+            margin-bottom: 15px;
+            color: #f7b733;
+            text-align: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            padding-bottom: 10px;
+            font-size: 1.8rem;
+        }
+        
+        .info-panel .info-item {
+            margin-bottom: 15px;
+            display: flex;
+            align-items: flex-start;
+        }
+        
+        .info-panel .info-label {
+            font-weight: bold;
+            min-width: 100px;
+            color: #bbdefb;
+        }
+        
+        .info-panel .info-value {
+            flex: 1;
+            line-height: 1.6;
+        }
+        
+        .floating-bg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0.03;
+            z-index: 0;
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(255, 200, 124, 0.2) 0%, transparent 20%),
+                radial-gradient(circle at 90% 80%, rgba(146, 202, 255, 0.2) 0%, transparent 20%),
+                radial-gradient(circle at 50% 50%, rgba(255, 124, 124, 0.2) 0%, transparent 30%);
+        }
+        
+        .close-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: none;
+            border: none;
+            color: #ff6b6b;
+            font-size: 1.5rem;
+            cursor: pointer;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            transition: all 0.3s ease;
+        }
+        
+        .close-btn:hover {
+            background: rgba(255, 107, 107, 0.2);
+            transform: rotate(90deg);
+        }
+        
+        .generation-indicator {
+            position: absolute;
+            bottom: 60px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.6);
+            padding: 10px 15px;
+            border-radius: 30px;
+            font-size: 0.9rem;
+            backdrop-filter: blur(5px);
+            z-index: 100;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        .color-box {
+            width: 15px;
+            height: 15px;
+            border-radius: 3px;
+            display: inline-block;
+        }
+        
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 1.8rem;
+            }
+            
+            .header p {
+                font-size: 0.9rem;
+            }
+            
+            .node text {
+                font-size: 14px;
+            }
+            
+            .info-panel {
+                top: auto;
+                bottom: 70px;
+                left: 20px;
+                right: 20px;
+                width: auto;
+                max-height: 50vh;
+                overflow-y: auto;
+            }
+            
+            .generation-indicator {
+                left: 50%;
+                transform: translateX(-50%);
+                bottom: 70px;
+                max-width: 90%;
+            }
+            
+            .generation-labels {
+                flex-wrap: wrap;
+                justify-content: center;
+                font-size: 0.9rem;
+                gap: 10px;
+                bottom: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="floating-bg"></div>
+    
+    <div class="header">
+        <h1>Mridha Family Tree</h1>
+        <p>7 Generations of Family History - Click on any member to see details    </p>
+		
+		 
+    </div>
+	
+	
+	
+    
+    <div id="tree-container"></div>
+    
+    <div class="info-panel" id="info-panel">
+        <button class="close-btn">&times;</button>
+        <h3 id="member-name">Family Member</h3>
+        <div class="info-item">
+            <span class="info-label">Generation:</span>
+            <span class="info-value" id="generation">-</span>
+        </div>
+        <div class="info-item">
+            <span class="info-label">Birth Year:</span>
+            <span class="info-value" id="birth-year">-</span>
+        </div>
+        <div class="info-item">
+            <span class="info-label">Children:</span>
+            <span class="info-value" id="children-count">-</span>
+        </div>
+        <div class="info-item">
+            <span class="info-label">Lifespan:</span>
+            <span class="info-value" id="lifespan">-</span>
+        </div>
+        <div class="info-item">
+            <span class="info-label">Position:</span>
+            <span class="info-value" id="position">-</span>
+        </div>
+        <div class="info-item">
+            <span class="info-label">Biography:</span>
+            <span class="info-value" id="biography">-</span>
+        </div>
+    </div>
+    
+    <div class="generation-labels">
+        <span>Founding Gen</span>
+        <span>Gen 1</span>
+        <span>Gen 2</span>
+        <span>Gen 3</span>
+        <span>Gen 4</span>
+        <span>Gen 5</span>
+        <span>Gen 6</span>
+    </div>
+    
+    <script>
+        // Enhanced family data with 6 generations and birth years
+        const familyData = {
+            "name": "Babar Ali Haolader",
+            "generation": 0,
+            "birth": "",
+            "position": "Family Patriarch",
+            "biography": "Founder of the Mridha family lineage. Established the family homestead in rural Bengal.",
+            "children": [
+                {
+                    "name": "Akkel Ali Mdridha",
+                    "generation": 1,
+                    "birth": "",
+                    "position": "Eldest Son",
+                    "biography": "Took over family responsibilities after his father. Expanded the family farmlands.He was a good man. he was an nice person . he was married to whom i dont know that allshafa all",
+                    "children": [
+                        {
+                            "name": "Md. Anes Mridha",
+                            "generation": 2,
+                            "birth": "",
+                            "position": "Family Scholar",
+                            "biography": "First in the family to receive formal education. Became a respected community teacher."
+                        },
+                        {
+                            "name": "Md. Abser Kerani", 
+                            "generation": 2,
+                            "birth": "",
+                            "position": "Village Accountant",
+                            "biography": "Served as the village accountant for 30 years. Known for his honesty and integrity.",
+                            "children": [
+                                {
+                                    "name": "Md. Khobir Mridha", 
+                                    "generation": 3,
+                                    "birth": "1945",
+                                    "position": "Businessman",
+                                    "biography": "Established the first family business in the nearby town. Created opportunities for younger generations.",
+                                    "children": [
+                                        {
+                                            "name": "Abdul Rouf", 
+                                            "generation": 4,
+                                            "birth": "",
+                                            "position": "Business ",
+                                            "biography": "",
+                                            "children": [
+                                                {
+                                                    "name": "Md. Nayem", 
+                                                    "generation": 5,
+                                                    "birth": "",
+                                                    "position": "",
+                                                    "biography": ""
+                                                    
+                                                },
+                                                {
+                                                    "name": "Mst. Nodhi", 
+                                                    "generation": 5,
+                                                    "birth": "",
+                                                    "position": "High  Student",
+                                                    "biography": "Studying to become a doctor. Specializing in pediatric medicine."
+                                                }
+                                            ]
+                                        },
+										{
+                                            "name": "Mst Happy", 
+                                            "generation": 4,
+                                            "birth": "1973",
+                                            "position": "Educator",
+                                            "biography": "University professor in economics. Published several research papers.",
+											
+											
+											
+											"children": [
+                                                {
+                                                    "name": "Md. Nabil", 
+                                                    "generation": 5,
+                                                    "birth": "",
+                                                    "position": "",
+                                                    "biography": ""
+                                                    
+                                                },
+												
+												
+                                                {
+                                                    "name": "Mst. Nowrin", 
+                                                    "generation": 5,
+                                                    "birth": "",
+                                                    "position": "High  Student",
+                                                    "biography": "Studying to become a doctor. Specializing in pediatric medicine."
+                                                }
+                                            ]
+											
+											
+                                        },
+										
+                                        {
+                                            "name": "Md. Ripon", 
+                                            "generation": 4,
+                                            "birth": "1973",
+                                            "position": "Educator",
+                                            "biography": "University professor in economics. Published several research papers.",
+											
+											
+											
+											"children": [
+                                                {
+                                                    "name": "Mst. Arora", 
+                                                    "generation": 5,
+                                                    "birth": "",
+                                                    "position": "",
+                                                    "biography": ""
+                                                    
+                                                },
+                                                {
+                                                    "name": "Mst. Aroshi", 
+                                                    "generation": 5,
+                                                    "birth": "",
+                                                    "position": "High  Student",
+                                                    "biography": "Studying to become a doctor. Specializing in pediatric medicine."
+                                                }
+                                            ]
+											
+											
+											
+											
+                                        }
+                                    ]
+                                },
+								
+								
+									{"name": "Md. Manik Mdridha", 
+                                    "generation": 3,
+                                    "birth": "1948",
+                                    "position": "Farmer",
+                                    "biography": "Continued the family farming tradition. Modernized agricultural practices.",
+									
+									"children": [
+                                                {
+                                                    "name": "Md. Babul", 
+                                                    "generation": 4,
+                                                    "birth": "",
+                                                    "position": "",
+                                                    "biography": ""
+                                                    
+                                                },
+												{
+                                                    "name": "Md. Sorowar", 
+                                                    "generation": 4,
+                                                    "birth": "",
+                                                    "position": "",
+                                                    "biography": ""
+                                                    
+                                                },
+												{
+                                                    "name": "Md. Delowar", 
+                                                    "generation": 4,
+                                                    "birth": "",
+                                                    "position": "",
+                                                    "biography": ""
+                                                    
+                                                },
+												
+												
+                                                {
+                                                    "name": "Md. Anwar", 
+                                                    "generation": 4,
+                                                    "birth": "",
+                                                    "position": "High  Student",
+                                                    "biography": "Studying to become a doctor. Specializing in pediatric medicine."
+                                                }
+                                            ]
+									},
+									
+									
+									
+									
+									{"name": "Md. Lotif Mridha", 
+                                    "generation": 3,
+                                    "birth": "1948",
+                                    "position": "Farmer",
+                                    "biography": "Continued the family farming tradition. Modernized agricultural practices.",
+									
+									"children": [
+                                                {
+                                                    "name": "Md. Halim", 
+                                                    "generation": 4,
+                                                    "birth": "",
+                                                    "position": "",
+                                                    "biography": ""
+                                                    
+                                                },
+												{
+                                                    "name": "Mst. Sahara", 
+                                                    "generation": 4,
+                                                    "birth": "",
+                                                    "position": "",
+                                                    "biography": ""
+                                                    
+                                                },
+												
+												
+					
+                                                {
+                                                    "name": "Mst. Rani", 
+                                                    "generation": 4,
+                                                    "birth": "",
+                                                    "position": "High  Student",
+                                                    "biography": "Studying to become a doctor. Specializing in pediatric medicine."
+                                                }
+                                            ]
+									
+									
+									},
+									
+									
+									{"name": "Mst Fatima", 
+                                    "generation": 3,
+                                    "birth": "1948",
+                                    "position": "Farmer",
+                                    "biography": "Continued the family farming tradition. Modernized agricultural practices."
+									},
+									{"name": "Mst. Halima", 
+                                    "generation": 3,
+                                    "birth": "1948",
+                                    "position": "Farmer",
+                                    "biography": "Continued the family farming tradition. Modernized agricultural practices.",
+									"children": [
+                                               
+												
+                                                {
+                                                    "name": "Mst. Mafia", 
+                                                    "generation": 4,
+                                                    "birth": "",
+                                                    "position": "High  Student",
+                                                    "biography": "Studying to become a doctor. Specializing in pediatric medicine."
+                                                }
+                                            ]
+									
+									},
+									
+									
+									
+									{"name": "Mst. Renu", 
+                                    "generation": 3,
+                                    "birth": "1948",
+                                    "position": "Farmer",
+                                    "biography": "Continued the family farming tradition. Modernized agricultural practices.",
+									
+									"children": [
+                                                {
+                                                    "name": "Md. Salam", 
+                                                    "generation": 4,
+                                                    "birth": "",
+                                                    "position": "",
+                                                    "biography": ""
+                                                    
+                                                },
+											
+												{
+                                                    "name": "Mst. Parul", 
+                                                    "generation": 4,
+                                                    "birth": "",
+                                                    "position": "",
+                                                    "biography": ""
+                                                    
+                                                },
+												
+												
+                                                {
+                                                    "name": "Mst. Mahamuda", 
+                                                    "generation": 4,
+                                                    "birth": "",
+                                                    "position": "High  Student",
+                                                    "biography": "Studying to become a doctor. Specializing in pediatric medicine."
+                                                }
+                                            ]
+									
+									
+									
+									
+									},
+									
+	
+									{"name": "Mst. Momotaj", 
+                                    "generation": 3,
+                                    "birth": "1948",
+                                    "position": "Farmer",
+                                    "biography": "Continued the family farming tradition. Modernized agricultural practices.",
+									"children": [
+                                                {
+                                                    "name": "Md. Shopon", 
+                                                    "generation": 4,
+                                                    "birth": "",
+                                                    "position": "",
+                                                    "biography": ""
+                                                    
+                                                },
+												{
+                                                    "name": "Md. Shohag", 
+                                                    "generation": 4,
+                                                    "birth": "",
+                                                    "position": "",
+                                                    "biography": ""
+                                                    
+                                                },
+											
+												
+                                                {
+                                                    "name": "Mst. Najma", 
+                                                    "generation": 4,
+                                                    "birth": "",
+                                                    "position": "High  Student",
+                                                    "biography": "Studying to become a doctor. Specializing in pediatric medicine."
+                                                }
+                                            ]
+									},
+									
+									
+									
+									{"name": "Mst. Sufia", 
+                                    "generation": 3,
+                                    "birth": "1948",
+                                    "position": "Farmer",
+                                    "biography": "Continued the family farming tradition. Modernized agricultural practices.",
+									"children": [
+                                                {
+                                                    "name": "Md. Masud", 
+                                                    "generation": 4,
+                                                    "birth": "",
+                                                    "position": "",
+                                                    "biography": ""
+                                                    
+                                                },
+												{
+                                                    "name": "Md. Abu Bakkar", 
+                                                    "generation": 4,
+                                                    "birth": "",
+                                                    "position": "",
+                                                    "biography": ""
+                                                    
+                                                },
+												{
+                                                    "name": " write later", 
+                                                    "generation": 4,
+                                                    "birth": "",
+                                                    "position": "",
+                                                    "biography": ""
+                                                    
+                                                },
+												
+												
+                                                {
+                                                    "name": "Md. Mamun", 
+                                                    "generation": 4,
+                                                    "birth": "",
+                                                    "position": "High  Student",
+                                                    "biography": "Studying to become a doctor. Specializing in pediatric medicine."
+                                                }
+                                            ]
+									
+									
+									},
+									
+									
+									
+									{"name": "Mst. Jabeda", 
+                                    "generation": 3,
+                                    "birth": "1948",
+                                    "position": "Farmer",
+                                    "biography": "Continued the family farming tradition. Modernized agricultural practices.",
+									
+									
+									"children": [
+                                               
+												
+                                                {
+                                                    "name": "Mst. Sajeda", 
+                                                    "generation": 4,
+                                                    "birth": "",
+                                                    "position": "High  Student",
+                                                    "biography": "Studying to become a doctor. Specializing in pediatric medicine."
+                                                }
+                                            ]
+									},
+								
+								
+								
+                                {
+                                    "name": "Mst. Sokina", 
+                                    "generation": 3,
+                                    "birth": "1948",
+                                    "position": "Farmer",
+                                    "biography": "Continued the family farming tradition. Modernized agricultural practices."
+                                }
+                            ]                                   
+                        },
+                        {
+                            "name": "Md. Afes Mridha", 
+                            "generation": 2,
+                            "birth": "1915",
+                            "position": "Community Leader",
+                            "biography": "Served as the village head for 15 years. Instrumental in local development projects.",
+                            "children": [
+                                {
+                                    "name": "Md. Owares Mridha", 
+                                    "generation": 3,
+                                    "birth": "1950",
+                                    "position": "Public Servant",
+                                    "biography": "Worked in local government administration for 35 years.",
+									
+									"children": [
+                                                {
+                                                    "name": "Adv. Md. Humayun Kabir", 
+                                                    "generation": 4,
+                                                    "birth": "",
+                                                    "position": "",
+                                                    "biography": ""
+                                                    
+                                                },
+                                                {
+                                                    "name": "Mst. Shahana AKter", 
+                                                    "generation": 4,
+                                                    "birth": "",
+                                                    "position": "",
+                                                    "biography": "Studying to become a doctor. Specializing in pediatric medicine."
+                                                },
+												{
+                                                    "name": "Mst. Tahomina Shelly", 
+                                                    "generation": 4,
+                                                    "birth": "",
+                                                    "position": "",
+                                                    "biography": "",
+													
+													
+													"children": [
+                                                {
+                                                    "name": "Md. Shadin", 
+                                                    "generation": 5,
+                                                    "birth": "",
+                                                    "position": "",
+                                                    "biography": ""
+                                                    
+                                                },
+                                               
+                                                {
+                                                    "name": "Md. Mubin", 
+                                                    "generation": 5,
+                                                    "birth": "",
+                                                    "position": "High  Student",
+                                                    "biography": "Studying to become a doctor. Specializing in pediatric medicine."
+                                                }
+                                            ]
+                                                    
+                                                },
+                                                {
+                                                    "name": "Mst. Taslima Shova", 
+                                                    "generation": 4,
+                                                    "birth": "",
+                                                    "position": "High  Student",
+                                                    "biography": "Studying to become a doctor. Specializing in pediatric medicine.",
+													
+													
+													
+													"children": [
+                                                {
+                                                    "name": "Mst. Ratna", 
+                                                    "generation": 5,
+                                                    "birth": "",
+                                                    "position": "",
+                                                    "biography": ""
+                                                    
+                                                },
+                                               
+                                                {
+                                                    "name": "Md. Raj", 
+                                                    "generation": 5,
+                                                    "birth": "",
+                                                    "position": "High  Student",
+                                                    "biography": "Studying to become a doctor. Specializing in pediatric medicine."
+                                                }
+                                            ]
+                                                }
+                                            ]
+									
+									
+                                },
+								{
+                                    "name": "Md. Abdul Aziz Mridha", 
+                                    "generation": 3,
+                                    "birth": "1950",
+                                    "position": "Public Servant",
+                                    "biography": "Worked in local government administration for 35 years.",
+									
+									"children": [
+                                                {
+                                                    "name": "Md. Monirul Islam", 
+                                                    "generation": 4,
+                                                    "birth": "",
+                                                    "position": "",
+                                                    "biography": "",
+													"children": [
+                                                {
+                                                    "name": "Md. Saiful Islam", 
+                                                    "generation": 5,
+                                                    "birth": "",
+                                                    "position": "",
+                                                    "biography": "",
+													"children": [
+                                              
+                                               
+                                                {
+                                                    "name": "Mst. Ahna", 
+                                                    "generation": 6,
+                                                    "birth": "",
+                                                    "position": "High  Student",
+                                                    "biography": "Studying to become a doctor. Specializing in pediatric medicine."
+                                                }
+                                            ]
+                                                    
+                                                },
+                                               
+                                                {
+                                                    "name": "Md. Shariful Islam", 
+                                                    "generation": 5,
+                                                    "birth": "",
+                                                    "position": "High  Student",
+                                                    "biography": "Studying to become a doctor. Specializing in pediatric medicine.",
+													
+													"children": [
+                                                {
+                                                    "name": "Md. Rushad", 
+                                                    "generation": 6,
+                                                    "birth": "",
+                                                    "position": "",
+                                                    "biography": ""
+                                                    
+                                                },
+                                               
+                                                {
+                                                    "name": "Mst. Fabiha", 
+                                                    "generation": 6,
+                                                    "birth": "",
+                                                    "position": "High  Student",
+                                                    "biography": "Studying to become a doctor. Specializing in pediatric medicine."
+                                                }
+                                            ]
+                                                }
+                                            ]
+                                                    
+                                                },
+                                                {
+                                                    "name": "Mst. Morjina Beguma Laily", 
+                                                    "generation": 4,
+                                                    "birth": "",
+                                                    "position": "High  Student",
+                                                    "biography": "Studying to become a doctor. Specializing in pediatric medicine.",
+													
+													"children": [
+                                                {
+                                                    "name": "Md. Saiful Islam Rasel", 
+                                                    "generation": 5,
+                                                    "birth": "",
+                                                    "position": "",
+                                                    "biography": ""
+                                                    
+                                                },
+                                               
+                                                {
+                                                    "name": "Md. Saberul Islam Rubel", 
+                                                    "generation": 5,
+                                                    "birth": "",
+                                                    "position": "High  Student",
+                                                    "biography": "Studying to become a doctor. Specializing in pediatric medicine."
+                                                }
+                                            ]
+                                                },
+												{
+                                                    "name": "Md. Golam Mostofa", 
+                                                    "generation": 4,
+                                                    "birth": "1966-2018",
+                                                    "position": "Ex Head Teacher",
+                                                    "biography": "",
+													"children": [
+                                                {
+                                                    "name": "Ahmed Golam Bayzid", 
+                                                    "generation": 5,
+                                                    "birth": "1997",
+                                                    "position": "Engineer",
+                                                    "biography": ""
+                                                    
+                                                },
+                                               
+                                                {
+                                                    "name": "Sumiaya Sultana Tuba", 
+                                                    "generation": 5,
+                                                    "birth": "2005",
+                                                    "position": "Student",
+                                                    "biography": "Dept Of Biology"
+                                                }
+                                            ]
+                                                    
+                                                },
+												{
+                                                    "name": "Md. Abu Jafor", 
+                                                    "generation": 4,
+                                                    "birth": "1974-2013",
+                                                    "position": "",
+                                                    "biography": "",
+													"children": [
+                                                {
+                                                    "name": "Md. Tousif Islam Tasin", 
+                                                    "generation": 5,
+                                                    "birth": "",
+                                                    "position": "Student",
+                                                    "biography": ""
+                                                    
+                                                },
+                                               
+                                                {
+                                                    "name": "Md. Saim", 
+                                                    "generation": 5,
+                                                    "birth": "",
+                                                    "position": "Student",
+                                                    "biography": "Studying to become a doctor. Specializing in pediatric medicine."
+                                                }
+                                            ]
+                                                    
+                                                },
+												{
+                                                    "name": "Md. Aminul Islam", 
+                                                    "generation": 4,
+                                                    "birth": "1974",
+                                                    "position": "",
+                                                    "biography": "",
+													"children": [
+                                                {
+                                                    "name": "Tajbiha  Islam Mowre", 
+                                                    "generation": 5,
+                                                    "birth": "",
+                                                    "position": "Student",
+                                                    "biography": ""
+                                                    
+                                                },
+                                               
+                                                {
+                                                    "name": "Md. Mursalin", 
+                                                    "generation": 5,
+                                                    "birth": "",
+                                                    "position": "Student",
+                                                    "biography": "Studying to become a doctor. Specializing in pediatric medicine."
+                                                }
+                                            ]
+                                                    
+                                                },
+												{
+                                                    "name": "Md. Shakawat Hossain", 
+                                                    "generation": 4,
+                                                    "birth": "",
+                                                    "position": "1978",
+                                                    "biography": "Business",
+													"children": [
+                                                {
+                                                    "name": "Samiha jahan Nidhi", 
+                                                    "generation": 5,
+                                                    "birth": "",
+                                                    "position": "Student",
+                                                    "biography": ""
+                                                    
+                                                },
+                                               
+                                                {
+                                                    "name": "Sahia Jahan Nafisa", 
+                                                    "generation": 5,
+                                                    "birth": "",
+                                                    "position": "Student",
+                                                    "biography": "Studying to become a doctor. Specializing in pediatric medicine."
+                                                }
+                                            ]
+                                                    
+                                                },
+												{
+                                                    "name": "Md. Shahadat Hossain", 
+                                                    "generation": 4,
+                                                    "birth": "",
+                                                    "position": "Engineer",
+                                                    "biography": "",
+													"children": [
+                                                {
+                                                    "name": "Md. Abdallah", 
+                                                    "generation": 5,
+                                                    "birth": "",
+                                                    "position": "Student",
+                                                    "biography": ""
+                                                    
+                                                },
+                                               
+                                                {
+                                                    "name": "Mst. Sumaiya", 
+                                                    "generation": 5,
+                                                    "birth": "",
+                                                    "position": "Student",
+                                                    "biography": "Studying to become a doctor. Specializing in pediatric medicine."
+                                                }
+                                            ]
+                                                    
+                                                },
+                                                {
+                                                    "name": "Md. Jahirul Islam Shahin", 
+                                                    "generation": 4,
+                                                    "birth": "",
+                                                    "position": "Grameen",
+                                                    "biography": "Studying to become a doctor. Specializing in pediatric medicine.",
+													"children": [
+                                                {
+                                                    "name": "Jannatul Maowa Dola", 
+                                                    "generation": 5,
+                                                    "birth": "",
+                                                    "position": "Student",
+                                                    "biography": ""
+                                                    
+                                                },
+                                               
+                                                {
+                                                    "name": "Md. Tawhid", 
+                                                    "generation": 5,
+                                                    "birth": "",
+                                                    "position": "High  Student",
+                                                    "biography": "Studying to become a doctor. Specializing in pediatric medicine."
+                                                }
+                                            ]
+                                                }
+                                            ]
+									
+                                },
+								{
+                                    "name": "Mst. Sonaban Bibi", 
+                                    "generation": 3,
+                                    "birth": "1950",
+                                    "position": "Public Servant",
+                                    "biography": "Worked in local government administration for 35 years.",
+											
+											"children": [
+                                                {
+                                                    "name": "Mst. Bokul", 
+                                                    "generation": 4,
+                                                    "birth": "",
+                                                    "position": "",
+                                                    "biography": ""
+                                                    
+                                                },
+                                                {
+                                                    "name": "Md. Mukul", 
+                                                    "generation": 4,
+                                                    "birth": "",
+                                                    "position": "High  Student",
+                                                    "biography": "Studying to become a doctor. Specializing in pediatric medicine."
+                                                },
+												{
+                                                    "name": "Mst. Khuku", 
+                                                    "generation": 4,
+                                                    "birth": "",
+                                                    "position": "",
+                                                    "biography": ""
+                                                    
+                                                },
+												{
+                                                    "name": "Md. Abdul Barek", 
+                                                    "generation": 4,
+                                                    "birth": "",
+                                                    "position": "",
+                                                    "biography": ""
+                                                    
+                                                },
+												
+												{
+                                                    "name": "Md. Sahabuddin Ahmed", 
+                                                    "generation": 4,
+                                                    "birth": "",
+                                                    "position": "",
+                                                    "biography": ""
+                                                    
+                                                },
+												{
+                                                    "name": "Md. Alomgir", 
+                                                    "generation": 4,
+                                                    "birth": "",
+                                                    "position": "",
+                                                    "biography": ""
+                                                    
+                                                },
+                                                {
+                                                    "name": "Md Jahangir", 
+                                                    "generation": 4,
+                                                    "birth": "",
+                                                    "position": "High  Student",
+                                                    "biography": "Studying to become a doctor. Specializing in pediatric medicine."
+                                                }
+                                            ]
+									
+									
+                                },
+								
+                                {
+                                    "name": "Mst. Fulbanu", 
+                                    "generation": 3,
+                                    "birth": "1952",
+                                    "position": "Business Owner",
+                                    "biography": "Ran a successful textile business in the regional market.",
+									
+												"children": [
+                                                {
+                                                    "name": "Mst. Tahomina Lili", 
+                                                    "generation": 4,
+                                                    "birth": "",
+                                                    "position": "",
+                                                    "biography": ""
+                                                    
+                                                },
+                                                {
+                                                    "name": "Mst. Taslima Laky", 
+                                                    "generation": 4,
+                                                    "birth": "",
+                                                    "position": "High  Student",
+                                                    "biography": "Studying to become a doctor. Specializing in pediatric medicine."
+                                                },
+												{
+                                                    "name": "Mst. Sheuly Begum", 
+                                                    "generation": 4,
+                                                    "birth": "",
+                                                    "position": "",
+                                                    "biography": ""
+                                                    
+                                                },
+												{
+                                                    "name": "Mst. Khalea Begum", 
+                                                    "generation": 4,
+                                                    "birth": "",
+                                                    "position": "",
+                                                    "biography": ""
+                                                    
+                                                },
+												{
+                                                    "name": "Md. Jayeda Beguma", 
+                                                    "generation": 4,
+                                                    "birth": "",
+                                                    "position": "",
+                                                    "biography": ""
+                                                    
+                                                },
+												{
+                                                    "name": "Md. Masum", 
+                                                    "generation": 4,
+                                                    "birth": "",
+                                                    "position": "",
+                                                    "biography": ""
+                                                    
+                                                },
+												
+                                                {
+                                                    "name": "Bashiruddin Babul", 
+                                                    "generation": 4,
+                                                    "birth": "",
+                                                    "position": "High  Student",
+                                                    "biography": "Studying to become a doctor. Specializing in pediatric medicine."
+                                                }
+                                            ]
+									
+									
+                                }
+                            ] 
+                        },
+                        {
+                            "name": "Md. Momin Uddin Mridha", 
+                            "generation": 2,
+                            "birth": "1918",
+                            "position": "Religious Scholar",
+                            "biography": "Respected Islamic scholar in the community. Taught at the local madrasa.",
+							 "children": [
+                                {
+                                    "name": "Md. Khalek Mridha", 
+                                    "generation": 3,
+                                    "birth": "1950",
+                                    "position": "Public Servant",
+                                    "biography": "Worked in local government administration for 35 years.",
+												"children": [
+                                                {
+                                                    "name": "Md. Abul Hossen", 
+                                                    "generation": 4,
+                                                    "birth": "",
+                                                    "position": "",
+                                                    "biography": ""
+                                                    
+                                                },
+												{
+                                                    "name": "Md. Joshim Uddin", 
+                                                    "generation": 4,
+                                                    "birth": "",
+                                                    "position": "",
+                                                    "biography": ""
+                                                    
+                                                },
+												{
+                                                    "name": "Md. Boshir Uddin", 
+                                                    "generation": 4,
+                                                    "birth": "",
+                                                    "position": "",
+                                                    "biography": ""
+                                                    
+                                                },
+                                                {
+                                                    "name": "Mst. Beuty Akter", 
+                                                    "generation": 4,
+                                                    "birth": "",
+                                                    "position": "High  Student",
+                                                    "biography": "Studying to become a doctor. Specializing in pediatric medicine."
+                                                }
+                                            ]
+									
+									
+                                },
+								
+								{
+                                    "name": "Mst. Saleha", 
+                                    "generation": 3,
+                                    "birth": "1950",
+                                    "position": "Public Servant",
+                                    "biography": "Worked in local government administration for 35 years.",
+									
+									"children": [
+                                                {
+                                                    "name": "Md. Harun", 
+                                                    "generation": 4,
+                                                    "birth": "",
+                                                    "position": "",
+                                                    "biography": ""
+                                                    
+                                                },
+												{
+                                                    "name": "Md. Jolil", 
+                                                    "generation": 4,
+                                                    "birth": "",
+                                                    "position": "",
+                                                    "biography": ""
+                                                    
+                                                },
+												{
+                                                    "name": "Md. Kholil", 
+                                                    "generation": 4,
+                                                    "birth": "",
+                                                    "position": "",
+                                                    "biography": ""
+                                                    
+                                                },
+												{
+                                                    "name": "Md. Monir", 
+                                                    "generation": 4,
+                                                    "birth": "",
+                                                    "position": "",
+                                                    "biography": ""
+                                                    
+                                                },{
+                                                    "name": "Mst. Anowara", 
+                                                    "generation": 4,
+                                                    "birth": "",
+                                                    "position": "",
+                                                    "biography": ""
+                                                    
+                                                },
+                                                {
+                                                    "name": "Mst. Parul", 
+                                                    "generation": 4,
+                                                    "birth": "",
+                                                    "position": "High  Student",
+                                                    "biography": "Studying to become a doctor. Specializing in pediatric medicine."
+                                                }
+                                            ]
+									
+                                },
+								
+                                {
+                                    "name": "Mst. Rizia", 
+                                    "generation": 3,
+                                    "birth": "1952",
+                                    "position": "Business Owner",
+                                    "biography": "Ran a successful textile business in the regional market.",
+									"children": [
+                                                {
+                                                    "name": "Md. Mokim", 
+                                                    "generation": 4,
+                                                    "birth": "",
+                                                    "position": "",
+                                                    "biography": ""
+                                                    
+                                                },
+												{
+                                                    "name": "Md. Enayet", 
+                                                    "generation": 4,
+                                                    "birth": "",
+                                                    "position": "",
+                                                    "biography": ""
+                                                    
+                                                },
+												{
+                                                    "name": "Md. Rohim", 
+                                                    "generation": 4,
+                                                    "birth": "",
+                                                    "position": "",
+                                                    "biography": ""
+                                                    
+                                                },
+												{
+                                                    "name": "Mst. Jahanara", 
+                                                    "generation": 4,
+                                                    "birth": "",
+                                                    "position": "",
+                                                    "biography": ""
+                                                    
+                                                },
+                                                {
+                                                    "name": "Mst. Parvin", 
+                                                    "generation": 4,
+                                                    "birth": "",
+                                                    "position": "High  Student",
+                                                    "biography": "Studying to become a doctor. Specializing in pediatric medicine."
+                                                }
+                                            ]
+									
+									
+                                }
+                            ] 
+							
+							
+                        },
+                        {
+                            "name": "Md. Hossen Uddin Mridha", 
+                            "generation": 2,
+                            "birth": "1920",
+                            "position": "Trader",
+                            "biography": "Established trade connections with neighboring regions. Expanded family wealth.",
+							 "children": [
+                                {
+                                    "name": "Md. Moktar Ali ", 
+                                    "generation": 3,
+                                    "birth": "1950",
+                                    "position": "Public Servant",
+                                    "biography": "Worked in local government administration for 35 years.",
+									
+									"children": [
+                                                {
+                                                    "name": "Md. Moslem", 
+                                                    "generation": 4,
+                                                    "birth": "",
+                                                    "position": "",
+                                                    "biography": ""
+                                                    
+                                                },
+												{
+                                                    "name": "Md. Nurul Islam", 
+                                                    "generation": 4,
+                                                    "birth": "",
+                                                    "position": "",
+                                                    "biography": ""
+                                                    
+                                                },
+												{
+                                                    "name": "Md. Babul Mridha", 
+                                                    "generation": 4,
+                                                    "birth": "",
+                                                    "position": "",
+                                                    "biography": ""
+                                                    
+                                                },
+												{
+                                                    "name": "Md. Kamal", 
+                                                    "generation": 4,
+                                                    "birth": "",
+                                                    "position": "",
+                                                    "biography": ""
+                                                    
+                                                },
+												{
+                                                    "name": "Mst. Rehena", 
+                                                    "generation": 4,
+                                                    "birth": "",
+                                                    "position": "",
+                                                    "biography": ""
+                                                    
+                                                },
+												{
+                                                    "name": "Mst. Rashida", 
+                                                    "generation": 4,
+                                                    "birth": "",
+                                                    "position": "",
+                                                    "biography": ""
+                                                    
+                                                },
+												{
+                                                    "name": "Mst. Rusia", 
+                                                    "generation": 4,
+                                                    "birth": "",
+                                                    "position": "",
+                                                    "biography": ""
+                                                    
+                                                },
+                                                {
+                                                    "name": "Mst. Rina", 
+                                                    "generation": 4,
+                                                    "birth": "",
+                                                    "position": "High  Student",
+                                                    "biography": "Studying to become a doctor. Specializing in pediatric medicine."
+                                                }
+                                            ]
+									
+									
+									
+                                },
+								{
+                                    "name": "Md. Akabbar Ali", 
+                                    "generation": 3,
+                                    "birth": "1950",
+                                    "position": "Public Servant",
+                                    "biography": "Worked in local government administration for 35 years.",
+									
+									"children": [
+                                                {
+                                                    "name": "Md. Forkan Mridha", 
+                                                    "generation": 4,
+                                                    "birth": "",
+                                                    "position": "",
+                                                    "biography": ""
+                                                    
+                                                },
+												{
+                                                    "name": "Md. Mashud Mridha", 
+                                                    "generation": 4,
+                                                    "birth": "",
+                                                    "position": "",
+                                                    "biography": ""
+                                                    
+                                                },
+												{
+                                                    "name": "Mst. Momena", 
+                                                    "generation": 4,
+                                                    "birth": "",
+                                                    "position": "",
+                                                    "biography": ""
+                                                    
+                                                },
+												
+												{
+                                                    "name": "Mst. Shahida", 
+                                                    "generation": 4,
+                                                    "birth": "",
+                                                    "position": "",
+                                                    "biography": ""
+                                                    
+                                                },
+												{
+                                                    "name": "Mst. Nehar", 
+                                                    "generation": 4,
+                                                    "birth": "",
+                                                    "position": "",
+                                                    "biography": ""
+                                                    
+                                                },
+												
+                                                    
+                                                
+                                                {
+                                                    "name": "Mst. Amena", 
+                                                    "generation": 4,
+                                                    "birth": "",
+                                                    "position": "High  Student",
+                                                    "biography": "Studying to become a doctor. Specializing in pediatric medicine."
+                                                }
+                                            ]
+									
+									
+                                },
+								{
+                                    "name": "Mst Kulsum", 
+                                    "generation": 3,
+                                    "birth": "1950",
+                                    "position": "Public Servant",
+                                    "biography": "Worked in local government administration for 35 years.",
+									"children": [
+                                                {
+                                                    "name": "Mst. Aleya", 
+                                                    "generation": 4,
+                                                    "birth": "",
+                                                    "position": "",
+                                                    "biography": ""
+                                                    
+                                                },
+												{
+                                                    "name": "Mst. Arfaton", 
+                                                    "generation": 4,
+                                                    "birth": "",
+                                                    "position": "",
+                                                    "biography": ""
+                                                    
+                                                },
+												{
+                                                    "name": "Mst. Majeda", 
+                                                    "generation": 4,
+                                                    "birth": "",
+                                                    "position": "",
+                                                    "biography": ""
+                                                    
+                                                },
+												{
+                                                    "name": "Mst. Sajeda", 
+                                                    "generation": 4,
+                                                    "birth": "",
+                                                    "position": "",
+                                                    "biography": ""
+                                                    
+                                                },
+												
+												{
+                                                    "name": "Md. Forid", 
+                                                    "generation": 4,
+                                                    "birth": "",
+                                                    "position": "",
+                                                    "biography": ""
+                                                    
+                                                },
+												
+                                                {
+                                                    "name": "Md. Sattar", 
+                                                    "generation": 4,
+                                                    "birth": "",
+                                                    "position": "High  Student",
+                                                    "biography": "Studying to become a doctor. Specializing in pediatric medicine."
+                                                }
+                                            ]
+									
+                                },
+								
+                                {
+                                    "name": "Mst Rupsun", 
+                                    "generation": 3,
+                                    "birth": "1952",
+                                    "position": "Business Owner",
+                                    "biography": "Ran a successful textile business in the regional market.",
+									
+									"children": [
+                                                {
+                                                    "name": "Md. Mowajjem Gazi", 
+                                                    "generation": 4,
+                                                    "birth": "",
+                                                    "position": "",
+                                                    "biography": ""
+                                                    
+                                                },
+												{
+                                                    "name": "Md. Nizam", 
+                                                    "generation": 4,
+                                                    "birth": "",
+                                                    "position": "",
+                                                    "biography": ""
+                                                    
+                                                },
+												{
+                                                    "name": "Md. Monowar", 
+                                                    "generation": 4,
+                                                    "birth": "",
+                                                    "position": "",
+                                                    "biography": ""
+                                                    
+                                                },
+												{
+                                                    "name": "Md. Delowar", 
+                                                    "generation": 4,
+                                                    "birth": "",
+                                                    "position": "",
+                                                    "biography": ""
+                                                    
+                                                },
+												{
+                                                    "name": "Mst. Rokeya", 
+                                                    "generation": 4,
+                                                    "birth": "",
+                                                    "position": "",
+                                                    "biography": ""
+                                                    
+                                                },
+												{
+                                                    "name": "Mst. Momotaj", 
+                                                    "generation": 4,
+                                                    "birth": "",
+                                                    "position": "",
+                                                    "biography": ""
+                                                    
+                                                },
+												
+                                                {
+                                                    "name": "Mst. Lili", 
+                                                    "generation": 4,
+                                                    "birth": "",
+                                                    "position": "High  Student",
+                                                    "biography": "Studying to become a doctor. Specializing in pediatric medicine."
+                                                }
+                                            ]
+									
+                                }
+                            ] 
+							
+							
+							
+                        },
+                        {
+                            "name": "Md. Asmot Ali Mridha", 
+                            "generation": 2,
+                            "birth": "1923",
+                            "position": "Craftsman",
+                            "biography": "Master carpenter known for exquisite woodwork. His creations are still prized today.",
+							
+							 "children": [
+                                {
+                                    "name": "Md. Selim", 
+                                    "generation": 3,
+                                    "birth": "1950",
+                                    "position": "Public Servant",
+                                    "biography": "Worked in local government administration for 35 years."
+                                },
+								{
+                                    "name": "Md. Mojibor", 
+                                    "generation": 3,
+                                    "birth": "1950",
+                                    "position": "Public Servant",
+                                    "biography": "Worked in local government administration for 35 years."
+                                },
+								{
+                                    "name": "Md. Habib", 
+                                    "generation": 3,
+                                    "birth": "1950",
+                                    "position": "Public Servant",
+                                    "biography": "Worked in local government administration for 35 years."
+                                },
+								{
+                                    "name": "Mst. Begum", 
+                                    "generation": 3,
+                                    "birth": "1950",
+                                    "position": "Public Servant",
+                                    "biography": "Worked in local government administration for 35 years."
+                                },
+								{
+                                    "name": "Mst. Asia", 
+                                    "generation": 3,
+                                    "birth": "1950",
+                                    "position": "Public Servant",
+                                    "biography": "Worked in local government administration for 35 years."
+                                },
+								{
+                                    "name": "Mst. Rokeya", 
+                                    "generation": 3,
+                                    "birth": "1950",
+                                    "position": "Public Servant",
+                                    "biography": "Worked in local government administration for 35 years."
+                                },
+								
+                                {
+                                    "name": "Mst. Hamida", 
+                                    "generation": 3,
+                                    "birth": "1952",
+                                    "position": "Business Owner",
+                                    "biography": "Ran a successful textile business in the regional market."
+                                }
+                            ] 
+							
+							
+                        },
+                        {
+                            "name": "Mst. Amena", 
+                            "generation": 2,
+                            "birth": "1925",
+                            "position": "Homemaker",
+                            "biography": "Matriarch who raised 7 children. Known for her charitable work in the community."
+                        }
+                    ]
+                },
+                {
+                    "name": "Akram Ali Mridha",
+                    "generation": 1,
+                    "birth": "1885",
+                    "position": "Younger Son",
+                    "biography": "Migrated to establish a new family branch. Developed successful agricultural innovations.",
+                    "children": [
+                        {
+                            "name": "Mobarak Ali", 
+                            "generation": 2,
+                            "birth": "1915",
+                            "position": "Merchant",
+                            "biography": "Built a trading business that connected rural producers with urban markets."
+                        },
+                        {
+                            "name": "Gohur Ali", 
+                            "generation": 2,
+                            "birth": "1920",
+                            "position": "Educator",
+                            "biography": "Founded the first school in his region. Educated generations of children."
+                        }
+                    ]
+                }
+            ]
+        };
+
+        // Set up dimensions
+        const container = document.getElementById('tree-container');
+        let width = container.clientWidth;
+        let height = container.clientHeight;
+        
+        // Create SVG
+        const svg = d3.select('#tree-container')
+            .append('svg')
+            .attr('width', width)
+            .attr('height', height)
+            .attr('viewBox', [0, 0, width, height])
+            .call(d3.zoom()
+                .scaleExtent([0.1, 5])
+                .on('zoom', (event) => {
+                    g.attr('transform', event.transform);
+                })
+            )
+            .append('g');
+        
+        const g = svg.append('g');
+        
+        // Tree layout
+        const treeLayout = d3.tree()
+            .size([height, width])
+            .nodeSize([120, 250])
+            .separation((a, b) => a.parent === b.parent ? 1 : 1.8);
+        
+        // Create hierarchy
+        const root = d3.hierarchy(familyData);
+        
+        // Compute tree layout
+        treeLayout(root);
+        
+        // Create links
+        const links = g.selectAll('.link')
+            .data(root.links())
+            .enter()
+            .append('path')
+            .attr('class', 'link')
+            .attr('d', d3.linkHorizontal()
+                .x(d => d.y)
+                .y(d => d.x)
+            );
+        
+        // Create nodes
+        const nodes = g.selectAll('.node')
+            .data(root.descendants())
+            .enter()
+            .append('g')
+            .attr('class', d => `node gen${d.data.generation}`)
+            .attr('transform', d => `translate(${d.y},${d.x})`);
+        
+        // Add circles to nodes
+        nodes.append('circle')
+            .attr('r', d => d.data.generation === 0 ? 20 : 16)
+            .attr('class', d => d.data.generation === 0 ? 'root' : `gen${d.data.generation}`)
+            .on('click', function(event, d) {
+                showMemberInfo(d.data);
+            });
+        
+        // Add text to nodes (name only - no birth year)
+        nodes.append('text')
+            .attr('dy', d => d.children ? -25 : 25)
+            .attr('text-anchor', 'middle')
+            .text(d => d.data.name)
+            .attr('fill', 'white')
+            .attr('font-size', d => d.depth < 2 ? '16px' : '14px')
+            .attr('font-weight', 'bold')
+            .on('click', function(event, d) {
+                showMemberInfo(d.data);
+            });
+        
+        // Function to show member info
+        function showMemberInfo(member) {
+            const infoPanel = document.getElementById('info-panel');
+            const memberName = document.getElementById('member-name');
+            const generation = document.getElementById('generation');
+            const birthYear = document.getElementById('birth-year');
+            const childrenCount = document.getElementById('children-count');
+            const lifespan = document.getElementById('lifespan');
+            const position = document.getElementById('position');
+            const biography = document.getElementById('biography');
+            
+            memberName.textContent = member.name;
+            generation.textContent = `Generation ${member.generation + 1}`;
+            position.textContent = member.position || 'Not specified';
+            biography.textContent = member.biography || 'Information not available';
+            
+            // Calculate children count
+            const children = member.children ? member.children.length : 0;
+            childrenCount.textContent = children === 0 ? 'None' : `${children} child${children !== 1 ? 'ren' : ''}`;
+            
+            // Parse birth and death years and calculate age
+            if (member.birth) {
+                // Check if birth field contains a dash (birth-death format)
+                if (member.birth.includes('-')) {
+                    const [birth, death] = member.birth.split('-');
+                    birthYear.textContent = birth;
+                    
+                    // Calculate age
+                    if (death && !isNaN(death)) {
+                        const age = parseInt(death) - parseInt(birth);
+                        lifespan.textContent = `${age} years (${birth} - ${death})`;
+                    } else {
+                        // Handle case where death year is not provided
+                        const currentYear = new Date().getFullYear();
+                        const age = currentYear - parseInt(birth);
+                        lifespan.textContent = `${age} years (${birth} - Present)`;
+                    }
+                } else {
+                    // Handle single year (birth only)
+                    birthYear.textContent = member.birth;
+                    const currentYear = new Date().getFullYear();
+                    const age = currentYear - parseInt(member.birth);
+                    lifespan.textContent = `${age} years (${member.birth} - Present)`;
+                }
+            } else {
+                birthYear.textContent = 'Not available';
+                lifespan.textContent = 'Not available';
+            }
+            
+            infoPanel.classList.add('show');
+        }
+        
+        // Close info panel
+        document.querySelector('.close-btn').addEventListener('click', function() {
+            document.getElementById('info-panel').classList.remove('show');
+        });
+        
+        // Responsive resize
+        window.addEventListener('resize', function() {
+            width = container.clientWidth;
+            height = container.clientHeight;
+            
+            d3.select('svg')
+                .attr('width', width)
+                .attr('height', height);
+        });
+        
+        // Close info panel when clicking outside
+        document.addEventListener('click', function(event) {
+            const infoPanel = document.getElementById('info-panel');
+            if (!event.target.closest('.node') && !event.target.closest('.info-panel') && 
+                event.target !== document.querySelector('.close-btn')) {
+                infoPanel.classList.remove('show');
+            }
+        });
+        
+        // Initialize with patriarch info
+        setTimeout(() => {
+            showMemberInfo(familyData);
+        }, 1000);
+    </script>
+</body>
+</html>
